@@ -17,10 +17,11 @@ from django.contrib import admin
 from django.urls import path
 
 from vacancies import views
+from vacancies.views import *
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', views.hello),
-    path('vacancy/', views.index),
-    path('vacancy/<int:vacancy_id>', views.get)
+    path('vacancy/', VacancyView.as_view()),
+    path('vacancy/<int:pk>', VacancyDetailView.as_view()),
 ]
