@@ -1,3 +1,6 @@
 from django.contrib import admin
 
-# Register your models here.
+from vacancies.models import *
+
+admin.site.register(Vacancy)
+admin.site.register(Skill)
