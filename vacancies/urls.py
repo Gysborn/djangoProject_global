@@ -10,5 +10,6 @@ urlpatterns = [
     path('create/', VacancyCreateView.as_view()),
     path('update/<int:pk>/', VacancyUpdateView.as_view()),
     path('delete/<int:pk>/', VacancyDeleteView.as_view()),
+    path('by_user/', UserVacancyDetailView.as_view()),
 
 ]

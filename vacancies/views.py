@@ -1,7 +1,9 @@
 import json
 
+from django.conf import settings
+from django.core.paginator import Paginator
+from django.db.models import Count, Avg
 from django.http import HttpResponse, JsonResponse
-from django.shortcuts import render
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
@@ -24,8 +26,25 @@ class VacancyListView(ListView):
         if search:
             self.object_list = self.object_list.filter(text=search)
 
-        return JsonResponse([{'id': vacancy.id, 'text': vacancy.text} for vacancy in self.object_list],
-                            safe=False)
+        self.object_list = self.object_list.select_related('user').prefetch_related('skills').order_by('text')
+        # Метод сортировки выбранному полю (text) методом order_by
+        # select_related (работает только для ForeignKey)помогает сформировать join по модели User
+        # что бы сокр. кол. запросов
+
+
+        paginator = Paginator(self.object_list, settings.TOTAL_ON_PAGE)
+        page_number = request.GET.get("page")
+        page_obj = paginator.get_page(page_number)
+
+        vacancies = [{'id': vacancy.id, 'text': vacancy.text,
+                      'skills': list(map(str, vacancy.skills.all()))} for vacancy in page_obj]
+        result = {
+            'items': vacancies,
+            'num_pages': paginator.num_pages,
+            'total': paginator.count,
+        }
+
+        return JsonResponse(result, safe=False)
 
 
 class VacancyDetailView(DetailView):
@@ -42,6 +61,7 @@ class VacancyDetailView(DetailView):
                 "user_id": vacancy.user_id,
                 "status": vacancy.status,
                 "created": vacancy.created,
+                "skills": [skill.name for skill in vacancy.skills.all()],
             }
         )
 
@@ -55,6 +75,17 @@ class VacancyCreateView(CreateView):
         vacancy_data = json.loads(request.body)
 
         vacancy = Vacancy.objects.create(**vacancy_data)
+
+        for skill in vacancy_data['skills']:
+            skill_obj, created = Skill.objects.get_or_create(
+                name=skill,
+                defaults={
+                    'is_active': True
+                }
+            )
+            vacancy.skills.add(skill_obj)
+        vacancy.save()
+
         return JsonResponse({
             'id': vacancy.id,
             'text': vacancy.text,
@@ -104,3 +135,26 @@ class VacancyDeleteView(DeleteView):
         return JsonResponse({
             'status': 'ok',
         }, status=200)
+
+
+class UserVacancyDetailView(View):
+    def get(self, request):
+        qs = User.objects.annotate(vacancies=Count('vacancy'))
+        # Применяем annotate к объекту User считаем кол. вакансий встроенным методом Count
+
+        paginator = Paginator(qs, settings.TOTAL_ON_PAGE)
+        page_number = request.GET.get("page")
+        page_obj = paginator.get_page(page_number)
+
+        users = [{'id': i.id, 'name': i.username, 'vacancies': i.vacancies} for i in page_obj]
+
+        response = {
+            'items': users,
+            'total': paginator.count,
+            'num_pages': paginator.num_pages,
+            'avg': qs.aggregate(avg=Avg('vacancies'))['avg']
+            #Терминальная функция aggregate применяется ко всем записям сразу
+            #В данном случае посчитали среднее кол. объявлений на пользователя
+        }
+
+        return JsonResponse(response)
