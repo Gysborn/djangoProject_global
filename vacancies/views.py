@@ -10,6 +10,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import DetailView, ListView, CreateView, UpdateView, DeleteView
 
 from vacancies.models import *
+from vacancies.serializer import VacancySerializer, VacancyDetailSerializer
 
 
 def hello(request):
@@ -31,15 +32,19 @@ class VacancyListView(ListView):
         # select_related (работает только для ForeignKey)помогает сформировать join по модели User
         # что бы сокр. кол. запросов
 
-
         paginator = Paginator(self.object_list, settings.TOTAL_ON_PAGE)
         page_number = request.GET.get("page")
         page_obj = paginator.get_page(page_number)
 
-        vacancies = [{'id': vacancy.id, 'text': vacancy.text,
-                      'skills': list(map(str, vacancy.skills.all()))} for vacancy in page_obj]
+        list(map(lambda x: setattr(x, 'username', x.user.username if x.user else None), page_obj))
+        # for ob in page_obj:
+        #     # setattr(ob, "skills", [ob.name for ob in ob.skills.all()])
+        #     return JsonResponse([ob.name for ob in ob.skills.all()], safe=False)
+
+            # vacancies = [{'id': vacancy.id, 'text': vacancy.text,
+        #               'skills': list(map(str, vacancy.skills.all()))} for vacancy in page_obj]
         result = {
-            'items': vacancies,
+            'items': VacancySerializer(page_obj, many=True).data,
             'num_pages': paginator.num_pages,
             'total': paginator.count,
         }
@@ -52,18 +57,18 @@ class VacancyDetailView(DetailView):
 
     def get(self, request, *args, **kwargs):
         vacancy = self.get_object()
-
-        return JsonResponse(
-            {
-                "id": vacancy.id,
-                "text": vacancy.text,
-                "slug": vacancy.slug,
-                "user_id": vacancy.user_id,
-                "status": vacancy.status,
-                "created": vacancy.created,
-                "skills": [skill.name for skill in vacancy.skills.all()],
-            }
-        )
+        return JsonResponse(VacancyDetailSerializer(vacancy).data)
+        # return JsonResponse(
+        #     {
+        #         "id": vacancy.id,
+        #         "text": vacancy.text,
+        #         "slug": vacancy.slug,
+        #         "user_id": vacancy.user_id,
+        #         "status": vacancy.status,
+        #         "created": vacancy.created,
+        #         "skills": [skill.name for skill in vacancy.skills.all()],
+        #     }
+        # )
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -153,8 +158,8 @@ class UserVacancyDetailView(View):
             'total': paginator.count,
             'num_pages': paginator.num_pages,
             'avg': qs.aggregate(avg=Avg('vacancies'))['avg']
-            #Терминальная функция aggregate применяется ко всем записям сразу
-            #В данном случае посчитали среднее кол. объявлений на пользователя
+            # Терминальная функция aggregate применяется ко всем записям сразу
+            # В данном случае посчитали среднее кол. объявлений на пользователя
         }
 
         return JsonResponse(response)

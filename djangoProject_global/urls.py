@@ -23,5 +23,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', views.hello),
     path('vacancy/', include('vacancies.urls')),
+    path('api-auth/', include('rest_framework.urls')),
 
 ]
