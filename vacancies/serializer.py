@@ -38,7 +38,7 @@ class VacancyCreateSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def is_valid(self, raise_exception=False):
-        self._skills = self.initial_data.pop('skills')
+        self._skills = self.initial_data.pop('skills', [])
         return super().is_valid(raise_exception=raise_exception)
 
     def create(self, validated_data):
@@ -66,7 +66,7 @@ class VacancyUpdateSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def is_valid(self, raise_exception=False):
-        self._skills = self.initial_data.pop('skills')
+        self._skills = self.initial_data.pop('skills', [])
         return super().is_valid(raise_exception=raise_exception)
 
     def save(self):
@@ -81,13 +81,12 @@ class VacancyUpdateSerializer(serializers.ModelSerializer):
 
 
 class VacancyDeleteSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Vacancy
         fields = ['id']
 
-# class SkillsSerializer(serializers.Serializer):
-#     id = serializers.IntegerField()
-#     name = serializers.CharField(max_length=20)
-#     is_active = serializers.BooleanField()s
-# skills = serializers.ManyRelatedField(child_relation=i)
+
+class SkillSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Skill
+        fields = '__all__'
